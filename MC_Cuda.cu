@@ -6,15 +6,6 @@
 #include <cmath>
 #include <chrono>
 #include <curand_kernel.h>
-#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
-{
-   if (code != cudaSuccess) 
-   {
-      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-      if (abort) exit(code);
-   }
-}
 
 
 
@@ -263,69 +254,50 @@ int main(){
     if(method=="naive_MC"){
         float* d_naive_sum;
         cudaMalloc((void**)&d_naive_sum, 256*sizeof(float));
-
-        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
         naive_MC<<<32*numSMs, 256>>>(d_first_sum,d_naive_sum,32*numSMs*256);
         cudaDeviceSynchronize();
         cudaMemcpy(h_sum_data,d_naive_sum, 256*sizeof(float), cudaMemcpyDeviceToHost);
         for(int i=0; i<256; i++){integral+=h_sum_data[i];}
         std::cout<<integral*(b_x-a_x)*(b_y-a_y)/N<<std::endl;
-        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-        std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
-        std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;
         cudaFree(d_naive_sum);
 
     }
 
     if(method=="interleav_MC"){
-        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
         interleav_MC<<<32*numSMs,256,256*sizeof(float)>>>(d_first_sum,d_second_sum, 32*numSMs*256);
-        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
         interleav_MC<<<10,256,256*sizeof(float)>>>(d_second_sum,d_sum_data,32*numSMs);
         cudaDeviceSynchronize();
         cudaMemcpy(h_sum_data,d_sum_data, 10*sizeof(float), cudaMemcpyDeviceToHost);
         for(int i=0; i<10; i++){integral+=h_sum_data[i];}
         std::cout<<integral*(b_x-a_x)*(b_y-a_y)/N<<std::endl;
-        std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count() << "[ns]" << std::endl;
-    
     }
 
     if(method=="seq_MC"){
-        //std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
         seq_MC<<<32*numSMs,256,256*sizeof(float)>>>(d_first_sum,d_second_sum, 32*numSMs*256);
-        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
         seq_MC<<<10,256,256*sizeof(float)>>>(d_second_sum,d_sum_data,32*numSMs);
         cudaDeviceSynchronize();
         cudaMemcpy(h_sum_data,d_sum_data, 10*sizeof(float), cudaMemcpyDeviceToHost);
         for(int i=0; i<10; i++){integral+=h_sum_data[i];}
         std::cout<<integral*(b_x-a_x)*(b_y-a_y)/N<<std::endl;
-        //std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;
     
     }
 
     if(method=="addload_MC"){
-        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
         addload_MC<<<32*numSMs,256,256*sizeof(float)>>>(d_first_sum,d_second_sum, 32*numSMs*256);
-        std::chrono::steady_clock::time_point end= std::chrono::steady_clock::now();
         addload_MC<<<10,256,256*sizeof(float)>>>(d_second_sum,d_sum_data,32*numSMs);
         cudaDeviceSynchronize();
         cudaMemcpy(h_sum_data,d_sum_data, 10*sizeof(float), cudaMemcpyDeviceToHost);
         for(int i=0; i<10; i++){integral+=h_sum_data[i];}
-        std::cout<<integral*(b_x-a_x)*(b_y-a_y)/N<<std::endl;
-        std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;
-    
+        std::cout<<integral*(b_x-a_x)*(b_y-a_y)/N<<std::endl;    
     }
 
     if(method=="lastwrap_MC"){
-        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
         lastwrap_MC<<<32*numSMs,256,256*sizeof(float)>>>(d_first_sum,d_second_sum, 32*numSMs*256);
-        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
         lastwrap_MC<<<10,256,256*sizeof(float)>>>(d_second_sum,d_sum_data,32*numSMs);
         cudaDeviceSynchronize();
         cudaMemcpy(h_sum_data,d_sum_data, 10*sizeof(float), cudaMemcpyDeviceToHost);
         for(int i=0; i<10; i++){integral+=h_sum_data[i];}
         std::cout<<integral*(b_x-a_x)*(b_y-a_y)/N<<std::endl;
-        std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;
     
     }
     
@@ -337,19 +309,10 @@ int main(){
     cudaFree(d_sum_data);
     cudaFree(d_x);
     cudaFree(d_y);
-    //delete [] x;
-    //delete [] y;
     delete [] h_sum_data;
 
     
-
-
-    //std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    //std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
-    //std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;
-    //std::cout << numSMs <<std::endl;
     std::chrono::steady_clock::time_point total_end = std::chrono::steady_clock::now();
-    //std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(total_end - total_begin).count() << "[µs]" << std::endl;
 
     return 0;
